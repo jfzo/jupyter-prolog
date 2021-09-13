@@ -1,0 +1,109 @@
+FROM ubuntu:16.04
+#FROM debian:stretch
+#FROM jgoerzen/debian-base-minimal:stretch
+#FROM ocaml/opam
+
+EXPOSE 8181
+
+RUN apt update 
+RUN apt install sudo
+#RUN sudo apt-get install -y  \
+#        build-essential cmake ninja-build pkg-config \
+#        ncurses-dev libreadline-dev libedit-dev \
+#        libgoogle-perftools-dev \
+#        libunwind-dev \
+#       libgmp-dev \
+#        libssl-dev \
+#        unixodbc-dev \
+#        zlib1g-dev libarchive-dev \
+#        libossp-uuid-dev \
+#        libxext-dev libice-dev libjpeg-dev libxinerama-dev libxft-dev \
+#        libxpm-dev libxt-dev \
+#        libdb-dev \
+#        libpcre3-dev \
+#        libyaml-dev \
+#        default-jdk junit4
+
+RUN sudo apt update --fix-missing
+RUN sudo apt install -y m4 perl libgmp-dev pkg-config zlib1g-dev python python3-pip wget vim tmux ipython3 nano git 
+#RUN sudo apt install -y m4 perl libgmp-dev pkg-config zlib1g-dev python python3-pip wget vim tmux python3-ipython nano git 
+RUN echo "deb http://download.opensuse.org/repositories/network:/messaging:/zeromq:/release-stable/Debian_9.0/ ./" | sudo tee -a /etc/apt/sources.list
+RUN wget https://download.opensuse.org/repositories/network:/messaging:/zeromq:/release-stable/Debian_9.0/Release.key -O- | sudo apt-key add
+RUN sudo apt install -y libzmq3-dev
+
+RUN sudo apt install -y software-properties-common
+RUN sudo add-apt-repository -y ppa:swi-prolog/stable
+RUN sudo apt-get --allow-unauthenticated update || true
+RUN sudo apt install -y swi-prolog git
+#RUN sudo apt install -y swi-prolog
+
+RUN pip3 install --upgrade pip
+
+#RUN pip3 install jupyter_client==6.1.12
+#RUN opam remote add upstream https://github.com/ocaml/opam-repository.git && \
+#    opam update && opam upgrade
+#RUN opam -y depext lwt_ssl
+#RUN opam switch create 4.07.1
+#RUN opam install -y lwt_ssl merlin utop user-setup github-unix jupyter
+
+#RUN sudo mkdir /usr/local/share/jupyter
+#RUN sudo chmod a+x /usr/local/share/jupyter
+#RUN python3 /home/opam/.local/bin/jupyter kernelspec install --name ocaml-jupyter "jupyter kernelspec install --name ocaml-jupyter "/home/opam/.local/share/jupyter/" --user" --user
+#RUN jupyter kernelspec install --name ocaml-jupyter "/home/opam/.local/share/jupyter/" --user
+
+
+RUN useradd -m -d /home/juan -s /bin/bash juan
+#RUN adduser juan sudo
+RUN usermod -aG sudo juan
+RUN echo 'juan:qwerty1234' | chpasswd
+
+ENV HOME=/home/juan
+WORKDIR $HOME
+
+USER juan
+# allow writes to the home directory
+ARG user_pass
+RUN echo $user_pass | sudo --stdin chmod 777 /home/juan
+
+
+#USER root
+#RUN useradd --create-home juan
+#RUN echo 'juan:qwerty1234' | chpasswd	
+
+RUN usermod -d /home/juan juan
+
+USER juan
+#RUN sudo usermod -d /home/juan juan
+RUN pip3 install --user jupyter
+RUN sudo --set-home python3 -m pip install --ignore-installed configparser==3.5.0 # XXX KC: Temp Fix
+#RUN pip3 install --ignore-installed configparser==3.5.0 # XXX KC: Temp Fix
+RUN pip3 install git+https://github.com/kayceesrk/jupyter-swi-prolog.git
+#RUN pip3 install --upgrade --user jswipl
+RUN pip3 install --user RISE
+RUN mkdir /home/juan/.local/share/jupyter/kernels/jswipl
+RUN wget https://raw.githubusercontent.com/targodan/jupyter-swi-prolog/master/kernel.json -P /home/juan/.local/share/jupyter/kernels/jswipl
+
+ENV PATH $PATH:/home/juan/.local/bin
+RUN jupyter-nbextension enable rise --py
+
+# Not interesting for me
+#RUN pip3 install git+https://github.com/kayceesrk/egal.git
+#RUN jupyter-nbextension install egal --py --user
+#RUN jupyter-nbextension enable egal --py --user
+
+RUN sudo apt install sqlite3
+
+USER juan
+RUN sudo -H pip3 install python-dateutil --upgrade
+#RUN sudo -H pip3 install jupyter_client==6.1.12
+RUN  pip3 install jupyter_client==6.1.12
+RUN jupyter notebook --generate-config
+RUN rm /home/juan/.jupyter/jupyter_notebook_config.py
+ADD jupyter_notebook_config.json /home/juan/.jupyter/
+RUN sudo chown juan:juan /home/juan/.jupyter/jupyter_notebook_config.json
+RUN chmod 755 /home/juan/.jupyter/jupyter_notebook_config.json
+
+
+WORKDIR /home/juan/
+ENV LD_PRELOAD /usr/lib/libswipl.so
+ENTRYPOINT jupyter notebook --ip=0.0.0.0   

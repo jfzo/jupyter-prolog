@@ -1,0 +1,31 @@
+FROM kayceesrk/cs3100_iitm
+#FROM debian:stretch
+#FROM jgoerzen/debian-base-minimal:stretch
+#FROM ocaml/opam
+
+EXPOSE 8181
+
+
+USER root
+RUN usermod -aG sudo opam
+RUN echo 'opam:qwerty1234' | chpasswd
+
+ENV HOME=/home/opam
+WORKDIR $HOME
+
+USER opam
+# allow writes to the home directory
+ARG user_pass
+RUN echo $user_pass | sudo --stdin chmod 777 /home/opam
+
+
+USER opam
+
+RUN jupyter notebook --generate-config
+RUN rm -Rf /home/opam/.jupyter/jupyter_notebook_config.py
+ADD jupyter_notebook_config.json /home/opam/.jupyter/
+RUN sudo chown opam:opam /home/opam/.jupyter/jupyter_notebook_config.json
+RUN chmod 755 /home/opam/.jupyter/jupyter_notebook_config.json
+
+
+ENTRYPOINT jupyter notebook --ip=0.0.0.0   
